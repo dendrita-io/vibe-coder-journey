@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/utils/AuthContext'
 import { db } from '@/utils/supabase'
 
@@ -21,6 +22,7 @@ interface ProgressDashboardProps {
 
 export default function ProgressDashboard({ modules: propModules, onModuleClick }: ProgressDashboardProps) {
   const { user } = useAuth()
+  const router = useRouter()
   const [modules, setModules] = useState<Module[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -192,7 +194,10 @@ export default function ProgressDashboard({ modules: propModules, onModuleClick 
             className={`bg-white rounded-2xl shadow-lg p-6 transition-all duration-200 hover:shadow-xl cursor-pointer ${
               module.completed ? 'border-2 border-green-200' : ''
             }`}
-            onClick={() => onModuleClick?.(module.id)}
+            onClick={() => {
+              onModuleClick?.(module.id)
+              router.push(`/modules/${module.id}`)
+            }}
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">

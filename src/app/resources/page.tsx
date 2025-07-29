@@ -1,303 +1,270 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-
-interface Resource {
-  id: string
-  title: string
-  description: string
-  category: string
-  type: 'article' | 'video' | 'tool' | 'documentation' | 'course'
-  url: string
-  tags: string[]
-  difficulty: 'beginner' | 'intermediate' | 'advanced'
-}
+import { getAllModules } from '@/utils/courseContent'
+import { useAuth } from '@/utils/AuthContext'
+import Navigation from '@/components/Navigation'
+import ProtectedRoute from '@/components/ProtectedRoute'
 
 export default function ResourcesPage() {
-  const [resources] = useState<Resource[]>([
-    {
-      id: '1',
-      title: 'Digital Ecosystem Fundamentals',
-      description: 'Comprehensive guide to understanding modern digital ecosystems and their components.',
-      category: 'Digital Ecosystem',
-      type: 'article',
-      url: 'https://example.com/digital-ecosystem',
-      tags: ['digital transformation', 'ecosystem', 'fundamentals'],
-      difficulty: 'beginner'
-    },
-    {
-      id: '2',
-      title: 'Product Design Principles',
-      description: 'Learn the core principles of product design and user experience.',
-      category: 'Product Design',
-      type: 'course',
-      url: 'https://example.com/product-design',
-      tags: ['UX', 'UI', 'design thinking', 'user research'],
-      difficulty: 'intermediate'
-    },
-    {
-      id: '3',
-      title: 'Prototyping Tools Comparison',
-      description: 'Compare different prototyping tools and choose the right one for your project.',
-      category: 'Prototyping',
-      type: 'article',
-      url: 'https://example.com/prototyping-tools',
-      tags: ['prototyping', 'tools', 'comparison', 'wireframing'],
-      difficulty: 'beginner'
-    },
-    {
-      id: '4',
-      title: 'AI Coding Assistants Guide',
-      description: 'Master the use of AI coding assistants to boost your development productivity.',
-      category: 'AI Tools',
-      type: 'video',
-      url: 'https://example.com/ai-coding',
-      tags: ['AI', 'coding', 'productivity', 'assistants'],
-      difficulty: 'intermediate'
-    },
-    {
-      id: '5',
-      title: 'MVP Development Framework',
-      description: 'Step-by-step framework for building and launching your MVP.',
-      category: 'MVP Development',
-      type: 'documentation',
-      url: 'https://example.com/mvp-framework',
-      tags: ['MVP', 'development', 'framework', 'launch'],
-      difficulty: 'advanced'
-    },
-    {
-      id: '6',
-      title: 'Market Validation Strategies',
-      description: 'Learn effective strategies to validate your product in the market.',
-      category: 'Market Validation',
-      type: 'course',
-      url: 'https://example.com/market-validation',
-      tags: ['validation', 'market research', 'customer feedback'],
-      difficulty: 'intermediate'
-    },
-    {
-      id: '7',
-      title: 'Figma Design System',
-      description: 'Complete design system template for modern web applications.',
-      category: 'Design Tools',
-      type: 'tool',
-      url: 'https://example.com/figma-system',
-      tags: ['figma', 'design system', 'components', 'UI'],
-      difficulty: 'intermediate'
-    },
-    {
-      id: '8',
-      title: 'React Development Best Practices',
-      description: 'Essential best practices for building scalable React applications.',
-      category: 'Development',
-      type: 'article',
-      url: 'https://example.com/react-best-practices',
-      tags: ['react', 'javascript', 'frontend', 'best practices'],
-      difficulty: 'intermediate'
-    }
-  ])
+  return (
+    <ProtectedRoute>
+      <ResourcesContent />
+    </ProtectedRoute>
+  )
+}
 
+function ResourcesContent() {
+  const { user } = useAuth()
+  const [selectedModule, setSelectedModule] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  const [selectedDifficulty, setSelectedDifficulty] = useState('all')
+  const [selectedType, setSelectedType] = useState<string>('all')
+  
+  const modules = getAllModules()
+  
+  // Get all resources from all modules
+  const allResources = modules.flatMap(module => 
+    module.resources.map(resource => ({
+      ...resource,
+      moduleTitle: module.title,
+      moduleId: module.id
+    }))
+  )
 
-  const categories = ['all', ...Array.from(new Set(resources.map(r => r.category)))]
-  const difficulties = ['all', 'beginner', 'intermediate', 'advanced']
-
-  const filteredResources = resources.filter(resource => {
+  // Filter resources based on search and filters
+  const filteredResources = allResources.filter(resource => {
     const matchesSearch = resource.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         resource.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         resource.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+                         resource.description.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesModule = selectedModule === 'all' || resource.moduleId === selectedModule
+    const matchesType = selectedType === 'all' || resource.type === selectedType
     
-    const matchesCategory = selectedCategory === 'all' || resource.category === selectedCategory
-    const matchesDifficulty = selectedDifficulty === 'all' || resource.difficulty === selectedDifficulty
-
-    return matchesSearch && matchesCategory && matchesDifficulty
+    return matchesSearch && matchesModule && matchesType
   })
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'article': return '📄'
-      case 'video': return '🎥'
-      case 'tool': return '🛠️'
-      case 'documentation': return '📚'
-      case 'course': return '🎓'
-      default: return '📄'
-    }
+  const resourceTypes = ['all', 'video', 'article', 'tool', 'documentation']
+  const typeLabels = {
+    all: 'Todos',
+    video: 'Videos',
+    article: 'Artículos',
+    tool: 'Herramientas',
+    documentation: 'Documentación'
   }
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'beginner': return 'bg-green-100 text-green-700'
-      case 'intermediate': return 'bg-yellow-100 text-yellow-700'
-      case 'advanced': return 'bg-red-100 text-red-700'
-      default: return 'bg-gray-100 text-gray-700'
+  const getResourceTypeIcon = (type: string) => {
+    switch (type) {
+      case 'video':
+        return '🎥'
+      case 'article':
+        return '📄'
+      case 'tool':
+        return '🛠️'
+      case 'documentation':
+        return '📚'
+      default:
+        return '🔗'
     }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+      <Navigation />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-4">
-            Resource Library
+            Biblioteca de Recursos
           </h1>
-          <p className="text-xl text-gray-600">Discover tools, guides, and materials to support your learning</p>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search Resources</label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Search by title, description, or tags..."
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                {categories.map(category => (
-                  <option key={category} value={category}>
-                    {category === 'all' ? 'All Categories' : category}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Difficulty</label>
-              <select
-                value={selectedDifficulty}
-                onChange={(e) => setSelectedDifficulty(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                {difficulties.map(difficulty => (
-                  <option key={difficulty} value={difficulty}>
-                    {difficulty === 'all' ? 'All Levels' : difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Results Count */}
-        <div className="mb-6">
-          <p className="text-gray-600">
-            Found {filteredResources.length} resource{filteredResources.length !== 1 ? 's' : ''}
+          <p className="text-gray-600 text-lg">
+            Accede a todos los recursos, herramientas y materiales de aprendizaje del curso
           </p>
         </div>
 
-        {/* Resources Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {filteredResources.map((resource) => (
-            <div 
-              key={resource.id}
-              className="bg-white rounded-2xl shadow-lg p-6 transition-all duration-200 hover:shadow-xl"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-2xl">{getTypeIcon(resource.type)}</span>
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      {resource.title}
-                    </h3>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-3">
-                    {resource.description}
-                  </p>
-                </div>
-                <div className="ml-4">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(resource.difficulty)}`}>
-                    {resource.difficulty}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Category</span>
-                  <span className="text-gray-700">{resource.category}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Type</span>
-                  <span className="text-gray-700 capitalize">{resource.type}</span>
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <div className="flex flex-wrap gap-1">
-                  {resource.tags.slice(0, 3).map((tag, index) => (
-                    <span 
-                      key={index}
-                      className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  {resource.tags.length > 3 && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
-                      +{resource.tags.length - 3} more
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <a
-                href={resource.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:shadow-lg transition-all duration-200 text-center block"
-              >
-                Access Resource
-              </a>
+        {/* Filters */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+          <div className="grid md:grid-cols-3 gap-4">
+            {/* Search */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Buscar recursos
+              </label>
+              <input
+                type="text"
+                placeholder="Buscar por título o descripción..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
             </div>
-          ))}
+
+            {/* Module Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filtrar por módulo
+              </label>
+              <select
+                value={selectedModule}
+                onChange={(e) => setSelectedModule(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                <option value="all">Todos los módulos</option>
+                {modules.map(module => (
+                  <option key={module.id} value={module.id}>
+                    {module.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Type Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filtrar por tipo
+              </label>
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                {resourceTypes.map(type => (
+                  <option key={type} value={type}>
+                    {typeLabels[type as keyof typeof typeLabels]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="mt-12 bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Link 
-              href="/projects"
-              className="flex flex-col items-center p-4 rounded-xl bg-purple-50 hover:bg-purple-100 transition-colors"
-            >
-              <span className="text-2xl mb-2">💻</span>
-              <span className="text-sm font-medium text-gray-700">Projects</span>
-            </Link>
-            <Link 
-              href="/forum"
-              className="flex flex-col items-center p-4 rounded-xl bg-blue-50 hover:bg-blue-100 transition-colors"
-            >
-              <span className="text-2xl mb-2">💭</span>
-              <span className="text-sm font-medium text-gray-700">Forum</span>
-            </Link>
-            <Link 
-              href="/quizzes"
-              className="flex flex-col items-center p-4 rounded-xl bg-green-50 hover:bg-green-100 transition-colors"
-            >
-              <span className="text-2xl mb-2">📝</span>
-              <span className="text-sm font-medium text-gray-700">Quizzes</span>
-            </Link>
-            <Link 
-              href="/progress"
-              className="flex flex-col items-center p-4 rounded-xl bg-orange-50 hover:bg-orange-100 transition-colors"
-            >
-              <span className="text-2xl mb-2">📊</span>
-              <span className="text-sm font-medium text-gray-700">Progress</span>
-            </Link>
+        {/* Resources Grid */}
+        <div className="space-y-6">
+          {/* Stats */}
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold text-purple-600">{allResources.length}</div>
+                <div className="text-sm text-gray-600">Total de recursos</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-blue-600">{modules.length}</div>
+                <div className="text-sm text-gray-600">Módulos</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-600">{filteredResources.length}</div>
+                <div className="text-sm text-gray-600">Resultados</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-orange-600">
+                  {allResources.filter(r => r.type === 'video').length}
+                </div>
+                <div className="text-sm text-gray-600">Videos</div>
+              </div>
+            </div>
           </div>
+
+          {/* Resources by Module */}
+          {selectedModule === 'all' ? (
+            // Show resources grouped by module
+            <div className="space-y-6">
+              {modules.map(module => {
+                const moduleResources = allResources.filter(r => r.moduleId === module.id)
+                const filteredModuleResources = moduleResources.filter(resource => {
+                  const matchesSearch = resource.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                       resource.description.toLowerCase().includes(searchTerm.toLowerCase())
+                  const matchesType = selectedType === 'all' || resource.type === selectedType
+                  return matchesSearch && matchesType
+                })
+
+                if (filteredModuleResources.length === 0) return null
+
+                return (
+                  <div key={module.id} className="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                      {module.title}
+                    </h3>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredModuleResources.map(resource => (
+                        <div key={resource.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-start space-x-3">
+                            <span className="text-2xl">{getResourceTypeIcon(resource.type)}</span>
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-gray-800 mb-1">{resource.title}</h4>
+                              <p className="text-sm text-gray-600 mb-2">{resource.description}</p>
+                              <div className="flex items-center justify-between">
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                  resource.type === 'video' ? 'bg-red-100 text-red-800' :
+                                  resource.type === 'article' ? 'bg-blue-100 text-blue-800' :
+                                  resource.type === 'tool' ? 'bg-green-100 text-green-800' :
+                                  'bg-purple-100 text-purple-800'
+                                }`}>
+                                  {resource.type}
+                                </span>
+                                <a
+                                  href={resource.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                                >
+                                  Ver →
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            // Show filtered resources
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">
+                Recursos filtrados ({filteredResources.length})
+              </h3>
+              {filteredResources.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-gray-400 text-2xl">🔍</span>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">No se encontraron recursos</h3>
+                  <p className="text-gray-600">Intenta ajustar los filtros de búsqueda</p>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredResources.map(resource => (
+                    <div key={resource.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-start space-x-3">
+                        <span className="text-2xl">{getResourceTypeIcon(resource.type)}</span>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-800 mb-1">{resource.title}</h4>
+                          <p className="text-sm text-gray-600 mb-2">{resource.description}</p>
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              resource.type === 'video' ? 'bg-red-100 text-red-800' :
+                              resource.type === 'article' ? 'bg-blue-100 text-blue-800' :
+                              resource.type === 'tool' ? 'bg-green-100 text-green-800' :
+                              'bg-purple-100 text-purple-800'
+                            }`}>
+                              {resource.type}
+                            </span>
+                            <a
+                              href={resource.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                            >
+                              Ver →
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
