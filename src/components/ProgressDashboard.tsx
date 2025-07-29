@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useAuth } from '@/utils/AuthContext'
+import { db } from '@/utils/supabase'
 
 interface Module {
   id: string
@@ -18,34 +20,40 @@ interface ProgressDashboardProps {
 }
 
 export default function ProgressDashboard({ modules: propModules, onModuleClick }: ProgressDashboardProps) {
-  const [modules, setModules] = useState<Module[]>([
+  const { user } = useAuth()
+  const [modules, setModules] = useState<Module[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Default module structure
+  const defaultModules: Module[] = [
     {
       id: '1',
-      title: 'Fundamentals of Digital Ecosystem',
+      title: 'Fundamentos del Ecosistema Digital',
       description: 'Understanding the basics of modern digital landscape',
-      completed: true,
-      progress: 100,
+      completed: false,
+      progress: 0,
       estimatedTime: '1 week'
     },
     {
       id: '2',
-      title: 'Productive Mindset & Product Design',
+      title: 'Mentalidad Productiva y Diseño de Producto',
       description: 'Developing a productive mindset and design thinking',
-      completed: true,
-      progress: 100,
+      completed: false,
+      progress: 0,
       estimatedTime: '1 week'
     },
     {
       id: '3',
-      title: 'Prototyping & Early Testing',
+      title: 'Prototipado y Pruebas Tempranas',
       description: 'Learn to prototype and test your ideas early',
       completed: false,
-      progress: 75,
+      progress: 0,
       estimatedTime: '1 week'
     },
     {
       id: '4',
-      title: 'AI Tools & Development Kit',
+      title: 'Tu Kit de Herramientas IA y Desarrollo',
       description: 'Master AI tools and development workflows',
       completed: false,
       progress: 0,
@@ -53,7 +61,7 @@ export default function ProgressDashboard({ modules: propModules, onModuleClick 
     },
     {
       id: '5',
-      title: 'MVP Construction Step by Step',
+      title: 'Construcción del MVP Paso a Paso',
       description: 'Build your MVP following proven methodologies',
       completed: false,
       progress: 0,
@@ -61,37 +69,63 @@ export default function ProgressDashboard({ modules: propModules, onModuleClick 
     },
     {
       id: '6',
-      title: 'Market Validation & Next Steps',
+      title: 'Validación de Mercado y Siguientes Pasos',
       description: 'Validate your product and plan next steps',
       completed: false,
       progress: 0,
       estimatedTime: '1 week'
     }
-  ])
-
-  const [isLoading, setIsLoading] = useState(true)
+  ]
 
   useEffect(() => {
-    // Simulate API call to fetch progress data
     const fetchProgress = async () => {
+      if (!user) {
+        setIsLoading(false)
+        return
+      }
+
       try {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
+        setIsLoading(true)
+        setError(null)
+
         // If modules are passed as props, use them
         if (propModules) {
           setModules(propModules)
+          setIsLoading(false)
+          return
         }
-        
-        setIsLoading(false)
+
+        // Fetch user progress from Supabase
+        const { data: progressData, error: progressError } = await db.getUserProgress(user.id)
+
+        if (progressError) {
+          console.error('Error fetching progress:', progressError)
+          setError('Error loading progress data')
+          setModules(defaultModules)
+        } else {
+          // Merge default modules with user progress data
+          const updatedModules = defaultModules.map(module => {
+            const userProgress = progressData?.find(p => p.module_id === module.id)
+            return {
+              ...module,
+              completed: userProgress?.completed || false,
+              progress: userProgress?.progress_percentage || 0,
+              title: userProgress?.module_title || module.title
+            }
+          })
+          setModules(updatedModules)
+        }
       } catch (error) {
         console.error('Error fetching progress:', error)
+        setError('Error loading progress data')
+        setModules(defaultModules)
+      } finally {
         setIsLoading(false)
       }
     }
 
     fetchProgress()
-  }, [propModules])
+  }, [user, propModules])
 
   const completedModules = modules.filter(module => module.completed)
   const totalProgress = Math.round((completedModules.length / modules.length) * 100)
@@ -103,6 +137,26 @@ export default function ProgressDashboard({ modules: propModules, onModuleClick 
           <div className="h-8 bg-gray-200 rounded mb-4"></div>
           <div className="h-4 bg-gray-200 rounded mb-2"></div>
           <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-2xl shadow-lg p-6">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-red-600 text-2xl">⚠️</span>
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Error Loading Progress</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     )
