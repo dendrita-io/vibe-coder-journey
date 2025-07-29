@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useAuth } from '@/utils/AuthContext'
 
 interface FormData {
   email: string
@@ -17,6 +18,7 @@ interface FormErrors {
   confirmPassword?: string
   firstName?: string
   lastName?: string
+  general?: string
 }
 
 interface RegistrationFormProps {
@@ -25,6 +27,7 @@ interface RegistrationFormProps {
 }
 
 export default function RegistrationForm({ onSuccess, redirectTo = '/progress' }: RegistrationFormProps) {
+  const { signUp } = useAuth()
   const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
@@ -94,26 +97,35 @@ export default function RegistrationForm({ onSuccess, redirectTo = '/progress' }
     }
 
     setIsSubmitting(true)
+    setErrors({})
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const userData = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        full_name: `${formData.firstName} ${formData.lastName}`
+      }
+
+      const { error } = await signUp(formData.email, formData.password, userData)
       
-      // Mock successful registration
-      setIsSuccess(true)
-      setFormData({
-        email: '',
-        password: '',
-        confirmPassword: '',
-        firstName: '',
-        lastName: ''
-      })
-      
-      if (onSuccess) {
-        onSuccess()
+      if (error) {
+        setErrors({ general: error.message })
+      } else {
+        setIsSuccess(true)
+        setFormData({
+          email: '',
+          password: '',
+          confirmPassword: '',
+          firstName: '',
+          lastName: ''
+        })
+        
+        if (onSuccess) {
+          onSuccess()
+        }
       }
     } catch (error) {
-      console.error('Registration error:', error)
+      setErrors({ general: 'An unexpected error occurred' })
     } finally {
       setIsSubmitting(false)
     }
@@ -149,6 +161,11 @@ export default function RegistrationForm({ onSuccess, redirectTo = '/progress' }
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {errors.general && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <p className="text-sm text-red-600">{errors.general}</p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
